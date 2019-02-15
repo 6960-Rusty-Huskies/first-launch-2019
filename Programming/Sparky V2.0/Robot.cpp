@@ -36,10 +36,10 @@ const double armAccelMultMin = 0.1; //minimum value for the arm acceleration mul
 double armAccelMult = armAccelMultMin; //acceleration multiplier for the double bar arm on the robot
 const double armAccelMultMax = 0.25; //max for the arm acceleration multiplier
 
-WPI_VictorSPX tln_cargoIO { 7 }; //axel + wheels used for intake and output of cargo balls
+WPI_VictorSPX vic_cargoIO { 7 }; //axel + wheels used for intake and output of cargo balls
 
 Joystick joy_codriver { 1 }; //controller for co driver (Arm control)
-int co_stickY = 1, co_cargoToggle = 2;
+int co_stickY = 1, co_cargoPowerToggle = 2, co_cargoIOToggle = 3;
 bool cargoOn = false;
 
 // MISCELLANEOUS //
@@ -130,14 +130,14 @@ void Robot::TeleopPeriodic() {
 
   tln_arm.Set(joy_codriver.GetRawAxis(co_stickY) * 0.5);
 
-  if(joy_codriver.GetRawButton(co_cargoToggle)){
-    if(tln_cargoIO.Get() > 0.1){
-      tln_cargoIO.Set(0.0);
-    } else {
-      tln_cargoIO.Set(0.5);
-    }
+  if(joy_codriver.GetRawButton(co_cargoPowerToggle)){
+    vic_cargoIO.Get() > 0.1 ? vic_cargoIO.Set(0.0) : vic_cargoIO.Set(0.5);
   }
-}
+
+  if(joy_codriver.GetRawButton(co_cargoIOToggle)){
+    vic_cargoIO.GetInverted() ? vic_cargoIO.SetInverted(false) : vic_cargoIO.SetInverted(true);
+  }
+}]
 
 //Use these functions to test controls BEFORE putting them in periodic classes.
 void Robot::TestInit() {}

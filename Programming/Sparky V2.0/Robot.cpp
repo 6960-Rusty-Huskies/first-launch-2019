@@ -11,6 +11,8 @@
 #include <cameraserver/CameraServer.h>
 #include <wpi/raw_ostream.h>
 
+#define __linux__
+
 using namespace frc;
 
 // Variable declaration //
@@ -31,7 +33,7 @@ Joystick joy_driver { 0 }; //controller for main driver
 int driver_leftStickY = 1, driver_rightStickY = 5; //driver sticks
 
 // CO-DRIVER //
-WPI_TalonSRX tln_arm { 5 }; //arm connected to Cargo In/Out box
+WPI_TalonSRX tln_arm { 5 }; //arm connected to Cargo intake box
 const double armAccelMultMin = 0.1; //minimum value for the arm acceleration multiplier
 double armAccelMult = armAccelMultMin; //acceleration multiplier for the double bar arm on the robot
 const double armAccelMultMax = 0.25; //max for the arm acceleration multiplier
@@ -48,14 +50,12 @@ const double pi = 3.1415926535897; //used for encoder distances
 // End variable declaration //
 
 void Robot::RobotInit() {
-  /*
   #if defined(__linux__)
     CameraServer::GetInstance()->StartAutomaticCapture();
   #else
     wpi::errs() << "Vision only available on Linux.\n";
     wpi::errs().flush();
   #endif
-  */
 
   m_chooser.SetDefaultOption(kAutoNameDefault, kAutoNameDefault);
   m_chooser.AddOption(kAutoNameCustom, kAutoNameCustom);
@@ -127,17 +127,18 @@ void Robot::TeleopInit() {}
 
 void Robot::TeleopPeriodic() {
   drv_wheels.TankDrive(joy_driver.GetRawAxis(driver_leftStickY) * accelMult, joy_driver.GetRawAxis(driver_rightStickY) * accelMult);
+  //if (!(limiterSwitch.GetPressed()) {
+    tln_arm.Set(joy_codriver.GetRawAxis(co_stickY) * 0.5);
+  //}
 
-  tln_arm.Set(joy_codriver.GetRawAxis(co_stickY) * 0.5);
-
-  if(joy_codriver.GetRawButton(co_cargoPowerToggle)){
+  if(joy_codriver.GetRawButton(co_cargoPowerToggle)) {
     vic_cargoIO.Get() > 0.1 ? vic_cargoIO.Set(0.0) : vic_cargoIO.Set(0.5);
   }
 
   if(joy_codriver.GetRawButton(co_cargoIOToggle)){
     vic_cargoIO.GetInverted() ? vic_cargoIO.SetInverted(false) : vic_cargoIO.SetInverted(true);
   }
-}]
+}
 
 //Use these functions to test controls BEFORE putting them in periodic classes.
 void Robot::TestInit() {}

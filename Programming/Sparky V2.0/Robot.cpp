@@ -1,16 +1,20 @@
 #include "Robot.h"
+
 #include <iostream>
-#include <frc/smartdashboard/SmartDashboard.h>
-#include <frc/Encoder.h>
-#include <ctre/Phoenix.h>
+#include <thread>
+
 #include <ctre/phoenix/motorcontrol/can/BaseMotorController.h>
-#include <frc/Solenoid.h>
-#include <frc/drive/DifferentialDrive.h>
-#include <frc/Joystick.h>
-#include <frc/BuiltInAccelerometer.h>
+#include <ctre/Phoenix.h>
+
 #include <cameraserver/CameraServer.h>
-#include <wpi/raw_ostream.h>
+#include <frc/drive/DifferentialDrive.h>
 #include <frc/DigitalInput.h>
+#include <frc/Encoder.h>
+#include <frc/Joystick.h>
+#include <frc/smartdashboard/SmartDashboard.h>
+#include <frc/Solenoid.h>
+
+#include <wpi/raw_ostream.h>
 
 #define __linux__
 
@@ -52,27 +56,36 @@ const double pi = 3.1415926535897; //used for encoder distances
 // End variable declaration //
 
 void Robot::RobotInit() {
+  // We need to run our vision program in a separate thread. If not, our robot
+  // program will not run.
   #if defined(__linux__)
-    CameraServer::GetInstance()->StartAutomaticCapture();
+    std::thread visionThread(VisionThread);
+    visionThread.detach();
   #else
     wpi::errs() << "Vision only available on Linux.\n";
     wpi::errs().flush();
   #endif
 
+  //Set autonomous mode choice on the smart dashboard.
   m_chooser.SetDefaultOption(kAutoNameDefault, kAutoNameDefault);
   m_chooser.AddOption(kAutoNameCustom, kAutoNameCustom);
   SmartDashboard::PutData("Auto Modes", &m_chooser);
 
+  //Sets the number of the samples the encoder gets to average when calculating period.
   enc_rightWheel.SetSamplesToAverage(5); 
+  //Used to calculate distance traveled in one rotation. Distance in this case is calculated in inches per second. 
+  //Formula: 1.0 / 360.0 * 2.0 * pi * radius
   enc_rightWheel.SetDistancePerPulse(1.0 / 360.0 * 2.0 * pi * 3.0);
+  //Sets the minimum number of inches per second for the robot to be considered to be moving.
   enc_rightWheel.SetMinRate(1.0);
 
+  //Repeat the above process for the left wheel encoder.
   enc_leftWheel.SetSamplesToAverage(5);
   enc_leftWheel.SetDistancePerPulse(1.0 / 360.0 * 2.0 * pi * 3.0);
   enc_leftWheel.SetMinRate(1.0);
 
+  //Set the talon arm to Brake Mode.
   tln_arm.SetNeutralMode(NeutralMode::Brake);
-  tln_arm.SetInverted(true);
   
   SmartDashboard::PutString("Cargo Intake Direction: ", (vic_cargoIO.GetInverted() ? "In" : "Out"));
 }
@@ -126,7 +139,8 @@ void Robot::TeleopInit() {}
 
 void Robot::TeleopPeriodic() {
   //tank drive that multiplies by the acceleration multiplier (determined in RobotPeriodic())
-  drv_wheels.TankDrive(joy_driver.GetRawAxis(driver_leftStickY) * accelMult, joy_driver.GetRawAxis(driver_rightStickY) * accelMult);
+  drv_wheels.TankDrive(joy_driver.GetRawAxis(driver_leftStickY) * accelMult, 
+                       joy_driver.GetRawAxis(driver_rightStickY) * accelMult);
 
   //neither limiter switch is hit
   if (!limiterSwitchBottom.Get() && !limiterSwitchTop.Get()) {
@@ -134,12 +148,12 @@ void Robot::TeleopPeriodic() {
     tln_arm.Set(joy_codriver.GetRawAxis(co_stickY) * armVelMult);
   } 
   //the bottom limiter switch is hit and the joystick is pushed forward
-  else if(limiterSwitchBottom.Get() && joy_codriver.GetRawAxis(co_stickY) > 0) { 
+  else if(limiterSwitchBottom.Get() && joy_codriver.GetRawAxis(co_stickY) < 0) { 
     //move the arm
     tln_arm.Set(joy_codriver.GetRawAxis(co_stickY) * armVelMult);
   } 
   //the top limiter switch is hit and the joystick is pulled backward
-  else if(limiterSwitchTop.Get() && joy_codriver.GetRawAxis(co_stickY) < 0) {
+  else if(limiterSwitchTop.Get() && joy_codriver.GetRawAxis(co_stickY) > 0) {
     //move the arm
     tln_arm.Set(joy_codriver.GetRawAxis(co_stickY) * armVelMult);
   }

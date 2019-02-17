@@ -1,0 +1,24 @@
+HOW TO CREATE THE SPARKY V2.0 PROJECT
+
+This file will tell you how to get from the text in the Robot.cpp main file and the Robot.h header file in 
+the same directory as this file to a full robot project. This process is outlined in the steps below.
+
+1. Open FRC Visual Studio (VS) code. If you do not have this downloaded, please do so in the links in the 
+   README.md file found in the 6960-Rusty-Huskies/first-launch-2019/README.md file.
+     
+2. Press Control + Shift + P and select 'WPILib: Create a new project'.
+
+3. Select 'Template,' 'cpp,' 'Timed Robot'. Configure the rest of the project however you'd like, and fill 
+   the 'Enter a team number' field with 6960.
+   
+4. The project will automatically start a build task. Wait for this task to complete.
+
+5. Copy the text found in 6960-Rusty-Huskies/first-launch-2019/Programming/Sparky V2.0/Robot.cpp into the 
+   Robot.cpp file found in the automatically generated project. This file is by default in src/main/cpp/Robot.cpp.
+   
+6. Repeat step 5 for the Header file, the text for which is stored in Sparky V2.0/Robot.h, and by default is in the 
+   project directory at src/main/include/Robot.h.
+   
+7. Build the project by pressing Control + Shift + P and selecting 'WPILIB: Build Robot Code.
+
+8. If the build fails, read through the above steps again and double check that you executed every step correctly.

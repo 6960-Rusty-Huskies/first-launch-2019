@@ -84,11 +84,6 @@ void Robot::RobotInit() {
   // program will not run.
   std::thread visionThread(VisionThread);
   visionThread.detach();
-  
-  //Set autonomous mode choice on the smart dashboard.
-  m_chooser.SetDefaultOption(kAutoNameDefault, kAutoNameDefault);
-  m_chooser.AddOption(kAutoNameCustom, kAutoNameCustom);
-  SmartDashboard::PutData("Auto Modes", &m_chooser);
 
   //Sets the number of the samples the encoder gets to average when calculating period.
   enc_rightWheel.SetSamplesToAverage(5); 
@@ -124,33 +119,17 @@ void Robot::RobotPeriodic() {
   SmartDashboard::UpdateValues();
 }
 
-void Robot::AutonomousInit() {
-
-  m_autoSelected = m_chooser.GetSelected();
-
-  if (m_autoSelected == kAutoNameCustom) {
-    // Custom Auto goes here
-  } else {
-    //Default Auto goes here
-  }
-
-}
+void Robot::AutonomousInit() {}
 
 void Robot::AutonomousPeriodic() {
-
-  if (m_autoSelected == kAutoNameCustom) {
-    // Custom Auto goes here
-  } else {
-     //the left wheel's distance is less than the maximum
-    while(enc_leftWheel.GetDistance() < 10) {
-      //set the drive to 0.5 speed
-      drv_wheels.TankDrive(0.5, 0.5);
-    }
-
-    //stop the drive
-    drv_wheels.TankDrive(0, 0);
+  //the left wheel's distance is less than the maximum
+  while(enc_leftWheel.GetDistance() < 10) {
+    //set the drive to 0.5 speed
+    drv_wheels.TankDrive(0.5, 0.5);
   }
-
+  
+  //stop the drive
+  drv_wheels.TankDrive(0, 0);
 }
 
 void Robot::TeleopInit() {}

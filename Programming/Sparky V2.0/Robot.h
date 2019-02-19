@@ -35,13 +35,4 @@ class Robot : public frc::TimedRobot {
     camera.SetResolution(640, 480);
     camera.SetFPS(30);
   };
-  
-  void UpdateDashboardValues();
-
- private:
-  frc::SendableChooser<std::string> m_chooser;
-  const std::string kAutoNameDefault = "Default";
-  const std::string kAutoNameCustom = "My Auto";
-  std::string m_autoSelected;
-  
 };

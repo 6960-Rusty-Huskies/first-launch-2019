@@ -4,68 +4,87 @@
 #include <thread>
 
 #include <ctre/phoenix/motorcontrol/can/BaseMotorController.h>
+#include <ctre/phoenix/motorcontrol/GroupMotorControllers.h>
 #include <ctre/Phoenix.h>
 
 #include <cameraserver/CameraServer.h>
+
+#include <frc/AnalogInput.h>
+#include <frc/Compressor.h>
 #include <frc/drive/DifferentialDrive.h>
 #include <frc/DigitalInput.h>
 #include <frc/Encoder.h>
 #include <frc/Joystick.h>
 #include <frc/smartdashboard/SmartDashboard.h>
+#include <frc/DoubleSolenoid.h>
 #include <frc/Solenoid.h>
+#include <frc/SpeedControllerGroup.h>
 
 #include <wpi/raw_ostream.h>
-
-#define __linux__
 
 using namespace frc;
 
 // Variable declaration //
 
 // DRIVER //
-WPI_TalonSRX tln_leftWheel { 1 }; //left motor
-WPI_TalonSRX tln_rightWheel { 2 }; //right motor
 
-Encoder enc_leftWheel { 0, 1 }; //left wheel encoder
-Encoder enc_rightWheel { 2, 3 }; //right wheel encoder
+//left motors
+WPI_TalonSRX tln_leftFront { 1 };
+WPI_TalonSRX tln_leftBack { 2 };
+SpeedControllerGroup grp_left { tln_leftFront, tln_leftBack };
 
-DifferentialDrive drv_wheels { tln_leftWheel, tln_rightWheel }; //left + right wheel diff. drive
-const double accelMultMin = 0.3; //minimum for the acceleration multiplier
-double accelMult = accelMultMin; //used to modify acceleration multiplier for the wheels
-const double accelMultMax = 0.75; //max for the acceleration multiplier
+//right motors
+WPI_TalonSRX tln_rightFront { 3 };
+WPI_TalonSRX tln_rightBack { 4 };
+SpeedControllerGroup grp_right { tln_rightFront, tln_rightBack };
 
-Joystick joy_driver { 0 }; //controller for main driver
+//left wheel encoder
+Encoder enc_leftWheel { 0, 1 };
+//right wheel encoder
+Encoder enc_rightWheel { 2, 3 };
+
+//left + right wheel diff. drive
+DifferentialDrive drv_wheels { grp_left, grp_right };
+
+//actuator wheel
+WPI_VictorSPX vic_actuatorBack { 6 };
+
+//controller for main driver
+Joystick joy_driver { 0 };
 //axis and button values on the controller
 int driver_leftStickY = 1, driver_rightStickY = 5;
 
 // CO-DRIVER //
-WPI_TalonSRX tln_arm { 5 }; //arm connected to Cargo intake box
-const double armVelMult = 0.25;
 
-DigitalInput limiterSwitchBottom { 4 }, limiterSwitchTop { 5 };
+//arm connected to Cargo intake box
+WPI_TalonSRX tln_arm { 5 };
+//multiplier for speed of the arm
+const double armVelMult = 0.75;
 
-WPI_VictorSPX vic_cargoIO { 7 }; //axel + wheels used for intake and output of cargo balls
+DigitalInput limiterSwitchTop { 4 }, limiterSwitchBottom { 5 };
 
-Joystick joy_codriver { 1 }; //controller for co driver (Arm control)
+//axel + wheels used for intake and output of cargo balls
+WPI_VictorSPX vic_cargoIO { 7 };
+
+//controller for co driver (Arm control)
+Joystick joy_codriver { 1 };
 //axis and button values on the controller
-int co_stickY = 1, co_cargoPowerToggle = 2, co_cargoIOToggle = 3;
+int co_stickY = 1, co_cargoPowerToggle = 1, co_cargoIOToggle = 2;
 
 // MISCELLANEOUS //
-const double pi = 3.1415926535897; //used for encoder distances
+
+//used for encoder distances
+const double pi = 3.1415926535897;
 
 // End variable declaration //
 
 void Robot::RobotInit() {
+
   // We need to run our vision program in a separate thread. If not, our robot
   // program will not run.
-  #if defined(__linux__)
-    std::thread visionThread(VisionThread);
-    visionThread.detach();
-  #else
-    wpi::errs() << "Vision only available on Linux.\n";
-    wpi::errs().flush();
-  #endif
-
+  std::thread visionThread(VisionThread);
+  visionThread.detach();
+  
   //Set autonomous mode choice on the smart dashboard.
   m_chooser.SetDefaultOption(kAutoNameDefault, kAutoNameDefault);
   m_chooser.AddOption(kAutoNameCustom, kAutoNameCustom);
@@ -86,24 +105,22 @@ void Robot::RobotInit() {
 
   //Set the talon arm to Brake Mode.
   tln_arm.SetNeutralMode(NeutralMode::Brake);
-  
-  SmartDashboard::PutString("Cargo Intake Direction: ", (vic_cargoIO.GetInverted() ? "In" : "Out"));
+  tln_arm.SetInverted(true);
+
+  //Set the left wheel inverted so it matches with the right one.
+  grp_left.SetInverted(true);
+
+  //Set the right back talon inverted so it doesn't move 
+  //in the opposite direction of the other one.
+  tln_rightBack.SetInverted(true);
+
+  //Put some important values on the Smart Dashboard.
+  //UpdateDashboardValues();
+  SmartDashboard::UpdateValues();
 }
 
+
 void Robot::RobotPeriodic() {
-
-  //checks if the sticks are pushed forward or backward
-  bool sticksMovingY = joy_driver.GetRawAxis(driver_leftStickY) > 0.1 || joy_driver.GetRawAxis(driver_rightStickY) > 0.1 || 
-     joy_driver.GetRawAxis(driver_leftStickY) < -0.1 || joy_driver.GetRawAxis(driver_rightStickY) < -0.01;
-
-  if(sticksMovingY && accelMult < accelMultMax) { //one of the sticks were moved
-    accelMult += 0.01; //add 0.01 to the acceleration multiplier
-  } else if(sticksMovingY && accelMult >= accelMultMax) { //the acceleration multiplier has reached its maximum value
-    accelMult = accelMultMax;
-  } else { //the sticks aren't being pushed
-    accelMult = accelMultMin; //reset the acceleration multiplier
-  }
-
   SmartDashboard::UpdateValues();
 }
 
@@ -124,7 +141,8 @@ void Robot::AutonomousPeriodic() {
   if (m_autoSelected == kAutoNameCustom) {
     // Custom Auto goes here
   } else {
-    while(enc_leftWheel.GetDistance() < 10) { //the left wheel's distance is less than 10
+     //the left wheel's distance is less than the maximum
+    while(enc_leftWheel.GetDistance() < 10) {
       //set the drive to 0.5 speed
       drv_wheels.TankDrive(0.5, 0.5);
     }
@@ -138,38 +156,35 @@ void Robot::AutonomousPeriodic() {
 void Robot::TeleopInit() {}
 
 void Robot::TeleopPeriodic() {
-  //tank drive that multiplies by the acceleration multiplier (determined in RobotPeriodic())
-  drv_wheels.TankDrive(joy_driver.GetRawAxis(driver_leftStickY) * accelMult, 
-                       joy_driver.GetRawAxis(driver_rightStickY) * accelMult);
 
-  //neither limiter switch is hit
-  if (!limiterSwitchBottom.Get() && !limiterSwitchTop.Get()) {
-    //move the arm
-    tln_arm.Set(joy_codriver.GetRawAxis(co_stickY) * armVelMult);
-  } 
-  //the bottom limiter switch is hit and the joystick is pushed forward
-  else if(limiterSwitchBottom.Get() && joy_codriver.GetRawAxis(co_stickY) < 0) { 
-    //move the arm
-    tln_arm.Set(joy_codriver.GetRawAxis(co_stickY) * armVelMult);
-  } 
-  //the top limiter switch is hit and the joystick is pulled backward
-  else if(limiterSwitchTop.Get() && joy_codriver.GetRawAxis(co_stickY) > 0) {
+  //tank drive that multiplies by the acceleration multiplier (determined in RobotPeriodic())
+  drv_wheels.TankDrive(joy_driver.GetRawAxis(driver_leftStickY) , 
+                       joy_driver.GetRawAxis(driver_rightStickY) );
+
+  //neither limiter switch is hit, or 
+  //the bottom switch is hit and the stick is moving back, or 
+  //the top switch is hit and the stick is pressed forward
+  if ((!limiterSwitchBottom.Get() && !limiterSwitchTop.Get()) || 
+      (limiterSwitchBottom.Get() && joy_codriver.GetRawAxis(co_stickY) > 0) || 
+      (limiterSwitchTop.Get() && joy_codriver.GetRawAxis(co_stickY) < 0)) {
     //move the arm
     tln_arm.Set(joy_codriver.GetRawAxis(co_stickY) * armVelMult);
   }
 
   if(joy_codriver.GetRawButtonPressed(co_cargoPowerToggle)) {
     //set the cargo motor off if it's on, or on if it's off.
-    vic_cargoIO.Get() > 0.0 ? vic_cargoIO.Set(0.0) : vic_cargoIO.Set(0.5);
+    vic_cargoIO.Set(vic_cargoIO.Get() > 0.0 ? 0.0 : 0.5);
   }
 
   if(joy_codriver.GetRawButtonPressed(co_cargoIOToggle)) {
-    //set the cargo motor inverted if it's not, or not if it is.
-    vic_cargoIO.GetInverted() ? vic_cargoIO.SetInverted(false) : vic_cargoIO.SetInverted(true);
+    //invert the cargo motor inversion.
+    vic_cargoIO.SetInverted(!vic_cargoIO.GetInverted());
   }
-
-  SmartDashboard::UpdateValues();
 }
+
+void Robot::DisabledInit() {}
+
+void Robot::DisabledPeriodic() {}
 
 //Use these functions to test controls BEFORE putting them in periodic classes.
 void Robot::TestInit() {}

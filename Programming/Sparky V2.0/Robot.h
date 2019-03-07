@@ -35,4 +35,6 @@ class Robot : public frc::TimedRobot {
     camera.SetResolution(640, 480);
     camera.SetFPS(30);
   };
+  
+  void UpdateDashboardValues();
 };

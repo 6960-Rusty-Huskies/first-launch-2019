@@ -32,8 +32,8 @@ class Robot : public frc::TimedRobot {
     // Get the USB camera from CameraServer
     cs::UsbCamera camera = frc::CameraServer::GetInstance()->StartAutomaticCapture();
     // Set the resolution and FPS
-    camera.SetResolution(640, 480);
-    camera.SetFPS(30);
+    camera.SetResolution(320, 240);
+    camera.SetFPS(20);
   };
   
   void UpdateDashboardValues();
